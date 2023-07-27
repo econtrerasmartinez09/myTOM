@@ -1,0 +1,14 @@
+{% extends 'tom_common/base.html' %}
+{% block title %}Target {{ target.name }}{% endblock %}
+{% block additional_css %}
+{% endblock %}
+{% block content %}
+<h1>Target: {{ target.name }}</h1>
+<p>RA: {{ target.ra }}</p>
+<p>Dec: {{ target.dec }}</p>
+<form action="" method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <input type="submit" value="Get Photometry">
+</form>
+{% endblock %}

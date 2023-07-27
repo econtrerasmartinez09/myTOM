@@ -85,9 +85,6 @@ TEMPLATES = [
         'DIRS': [os.path.join(BASE_DIR, 'templates')],
         'APP_DIRS': True,
         'OPTIONS': {
-            "libraries": {
-                "atlas_tags": "templatetags.tom_targets.force_photometry",
-            },
             'context_processors': [
                 'django.template.context_processors.debug',
                 'django.template.context_processors.request',
@@ -231,12 +228,14 @@ DATA_PRODUCT_TYPES = {
     'photometry': ('photometry', 'Photometry'),
     'fits_file': ('fits_file', 'FITS File'),
     'spectroscopy': ('spectroscopy', 'Spectroscopy'),
-    'image_file': ('image_file', 'Image File')
+    'image_file': ('image_file', 'Image File'),
+    'csv_file': ('csv_file', 'CSV File'),
 }
 
 DATA_PROCESSORS = {
     'photometry': 'tom_dataproducts.processors.photometry_processor.PhotometryProcessor',
     'spectroscopy': 'tom_dataproducts.processors.spectroscopy_processor.SpectroscopyProcessor',
+    'atlas': 'mytom.atlas_app.data_processor.MyDataProcessor'   # is this necessary
 }
 
 TOM_FACILITY_CLASSES = [

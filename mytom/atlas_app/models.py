@@ -16,3 +16,10 @@ from tom_alerts.models import AlertStreamMessage
 from tom_observations.models import ObservationRecord
 
 # Create your models here.
+
+class QueryModel(models.Model):
+
+    MJD = models.FloatField()
+
+    def __str__(self):
+        return self.title
