@@ -235,7 +235,7 @@ DATA_PRODUCT_TYPES = {
 DATA_PROCESSORS = {
     'photometry': 'tom_dataproducts.processors.photometry_processor.PhotometryProcessor',
     'spectroscopy': 'tom_dataproducts.processors.spectroscopy_processor.SpectroscopyProcessor',
-    'atlas': 'mytom.atlas_app.data_processor.MyDataProcessor'   # is this necessary
+    'csv': 'mytom.atlas_app.data_processor.MyDataProcessor'   # is this necessary
 }
 
 TOM_FACILITY_CLASSES = [

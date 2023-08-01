@@ -171,3 +171,28 @@ class QueryView_original(DetailView):   #MainFunctionView
 				form = QueryForm()
 		print(f'post -- form: {form}')
 		return render(request, 'query.html', {'form':form})   # inserting form here is the issue
+
+
+
+
+
+########################################################
+
+
+	dt.append(io.TextIOWrapper(textdata))
+
+	print(f'this is it: {dt}')
+
+	#testing = []
+
+	#for lines in textdata:
+	#	testing.append(lines)
+
+	#def function(a):
+	#	return ''.join(char or ' ' for char in a)
+
+	#data = []
+
+	#data.append(function(testing))
+
+	#print(f"this is the data: {data}")

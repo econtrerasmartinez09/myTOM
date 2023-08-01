@@ -1,8 +1,10 @@
+# PREAMBLE with necessary libraries
+
+import io
 import os
 import subprocess
 import time
-import pandas
-import pandas as pd
+import csv
 import requests
 import sys
 import numpy as np
@@ -37,18 +39,18 @@ from .data_processor import run_data_processor
 # Create your views here.
 
 class TargetDetailView(Raise403PermissionRequiredMixin, DetailView):
-	permission_required = 'tom_targets.view_target'   # where does this come from
-	model = Target
+	permission_required = 'tom_targets.view_target'
+	model = Target   # importing Target from ORM
 
 	def get_context_data(self, *args, **kwargs):
 		context = super().get_context_data(*args,**kwargs)
-		#observation_template_form = ApplyObservationTemplateForm(initial={'target': self.get_object()})
+		# observation_template_form = ApplyObservationTemplateForm(initial={'target': self.get_object()})
 		if any(self.request.GET.get(x) for x in ['observation_template','cadence_strategy','cadence_frequency']):
 			initial = {'target': self.object}
 			initial.update(self.request.GET)
-			#observation_template_form = ApplyObservationTemplateForm(
-			#	initial=initial
-			#)
+			# observation_template_form = ApplyObservationTemplateForm(
+			# 	initial=initial
+			# )
 		observation_template_form.fields['target'].widget = HiddenInput()
 		context['observation_template_form'] = observation_template_form
 		return context
@@ -94,11 +96,11 @@ class QueryView(View):
 	def post(self, request, pk, *args, **kwargs):
 
 		form = QueryForm(request.POST)
-		target = Target.objects.get(pk=pk)
+		target = Target.objects.get(pk=pk)   # need to pass this to main_func and then data_processor
 
 		if form.is_valid():
 			print(form.cleaned_data['mjd'])
-			main_func(self, RA = target.dec, Dec = target.dec , MJD=form.cleaned_data['mjd'])
+			main_func(self, target , MJD=form.cleaned_data['mjd'])
 			return HttpResponseRedirect(reverse('tom_targets:detail',args=[pk]))
 		else:
 			form = QueryForm()
@@ -107,12 +109,12 @@ class QueryView(View):
 			'form': form,
 		})
 
-def main_func(self,RA, Dec,MJD):
+def main_func(self, target, MJD):
 
-	print('This is the RA:', RA)
-	print('This is the Dec:', Dec)
+	print('This is the RA:', target.ra)
+	print('This is the Dec:', target.dec)
 
-	BASEURL = settings.BROKERS['atlas']['BASEURL']   #producing error right here
+	BASEURL = settings.BROKERS['atlas']['BASEURL']
 
 	print(BASEURL)
 
@@ -121,10 +123,8 @@ def main_func(self,RA, Dec,MJD):
 		print("Using stored token")
 
 	else:
-		data = {"username": 'econtrerasmartinez',  # change the environment variable to actual user/pwd
-				"password": '6100514092@Eze'}  # once have access to email
-
-		print('this is the username and password: ', data)
+		data = {"username": ['atlas']['USER'],
+				"password": ['atlas']['PASS']}
 
 		resp = requests.post(url=f"{BASEURL}/api-token-auth/", data=data)
 		print('this is the resp code: ', resp.status_code)
@@ -145,7 +145,7 @@ def main_func(self,RA, Dec,MJD):
 		with requests.Session() as s:
 			resp = s.post(
 				f"{BASEURL}/queue/", headers=headers,
-				data={"ra": RA, "dec": Dec, "mjd_min": MJD, "send_email": False})
+				data={"ra":target.ra, "dec": target.dec, "mjd_min": MJD, "send_email": False})
 
 			if resp.status_code == 201:
 				task_url = resp.json()["url"]
@@ -192,9 +192,28 @@ def main_func(self,RA, Dec,MJD):
 	with requests.Session() as s:
 		textdata = s.get(result_url, headers=headers).text
 
-	dfresult = pd.read_csv(StringIO(textdata.replace("###", "")), delim_whitespace=True)
-	#dfresult.to_csv('dfresult.csv',sep='')
-	reduced_data = run_data_processor(dfresult)
+	file = StringIO(textdata)   # this is KEY for it 'textdata' to be read as a file
 
-	return reduced_data
+	data = []
+
+	for index, line in enumerate(file):
+		entries = line.replace("\n", "").split()
+
+		line_data = []
+
+		for idx, x in enumerate(entries):
+			if index == 0:  # only for the first line of file (i.e. headers)
+				if idx == 0:
+					x = x.replace("###", "")
+				if idx == 0 or idx == 1 or idx == 2 or idx == 5:   # calls for only MJD, m, dm, F headers
+					line_data.append(str(x))
+			elif idx == 0 or idx == 5:
+				line_data.append(str(x))   # mjd & filter code = str
+			elif idx == 1 or idx == 2:
+				line_data.append(float(x))   # m & dm = float
+		data.append(line_data)
+
+	run_data_processor(data, target)   # custom data processor for ATLAS photometry
+
+	return True
 
