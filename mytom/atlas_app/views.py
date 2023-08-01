@@ -123,8 +123,8 @@ def main_func(self, target, MJD):
 		print("Using stored token")
 
 	else:
-		data = {"username": ['atlas']['USER'],
-				"password": ['atlas']['PASS']}
+		data = {"username": settings.BROKERS['atlas']['USER'],
+				"password": settings.BROKERS['atlas']['PASS']}
 
 		resp = requests.post(url=f"{BASEURL}/api-token-auth/", data=data)
 		print('this is the resp code: ', resp.status_code)
