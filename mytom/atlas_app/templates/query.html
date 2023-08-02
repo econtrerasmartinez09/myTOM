@@ -6,9 +6,22 @@
 <h1>Target: {{ target.name }}</h1>
 <p>RA: {{ target.ra }}</p>
 <p>Dec: {{ target.dec }}</p>
-<form action="" method="post">
+<form onsubmit="openLoader()" action="" method="post">
     {% csrf_token %}
     {{ form.as_p }}
     <input type="submit" value="Get Photometry">
 </form>
+<div id="loadingModal" style="display: none;">
+    <button class="btn btn-primary" type="button" disabled>
+      <span class="spinner-grow spinner-grow-sm" role="status" aria-hidden="true"></span>
+      Loading...
+    </button>
+</div>
+<script>
+
+function openLoader() {
+    document.getElementById("loadingModal").style.display = "block";
+  }
+
+</script>
 {% endblock %}
