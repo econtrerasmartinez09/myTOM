@@ -27,27 +27,32 @@ def run_data_processor(dp, target):
         mod = import_module(mod_name)
         clazz = getattr(mod, class_name)
     except (ImportError, AttributeError):
-        raise ImportError('Could not import {}. Did you provide the correct path?'.format(processor_class))
+        raise ImportError('Could not import {}. Did you provide the correct path?'.format(processor_class))  #
 
     data_processor = clazz()
 
-    reduced_datums = []
+    # use a try/except wrap around this entire section for true/false values for test_dataprocessor
+    try:
+        reduced_datums = []
 
-    for item in dp[1:]:
-        t = Time(item[0], format='mjd', scale='utc')
-        mjd = {'timestamp': t.iso}
-        values = {'magnitude': item[1],
-                  'magnitude_error': item[2],
-                  'filter': item[3]}
+        for item in dp[1:]:
+            t = Time(item[0], format='mjd', scale='utc')
+            mjd = {'timestamp': t.iso}
+            values = {'magnitude': item[1],
+                      'magnitude_error': item[2],
+                      'filter': item[3]}
 
-        datum = ReducedDatum(target = target, data_type = 'photometry',
-                                  timestamp = mjd['timestamp'], value = values)
+            datum = ReducedDatum(target = target, data_type = 'photometry',
+                                      timestamp = mjd['timestamp'], value = values)
 
-        reduced_datums.append(datum)
+            reduced_datums.append(datum)
 
-    ReducedDatum.objects.bulk_create(reduced_datums)
+        ReducedDatum.objects.bulk_create(reduced_datums)
 
-    return True
+        return True
+
+    except RuntimeError:
+        return False
 
 class MyDataProcessor(DataProcessor):
 

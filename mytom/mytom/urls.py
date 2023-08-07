@@ -18,4 +18,5 @@ from django.urls import path, include
 urlpatterns = [
     path('', include('tom_common.urls')),
     path('', include('atlas_app.urls')),
+    path('', include('ztf_app.urls')),
 ]

@@ -1,5 +1,5 @@
 {% extends 'tom_common/base.html' %}
-{% load comments bootstrap4 tom_common_extras targets_extras observation_extras dataproduct_extras force_photometry static cache %}
+{% load comments bootstrap4 tom_common_extras targets_extras observation_extras dataproduct_extras force_photometry ztf_force_photometry static cache %}
 {% block title %}Target {{ object.name }}{% endblock %}
 {% block additional_css %}
 <link rel="stylesheet" href="{% static 'tom_common/css/main.css' %}">
@@ -34,6 +34,7 @@ $(document).ready(function(){
       {% target_unknown_statuses object %}
       {% target_buttons object %}
       {% photometry_buttons object %}
+      {% ztf_photometry_buttons object %}
       {% target_data object %}
       {% recent_photometry object %}
       {% share_data object %}

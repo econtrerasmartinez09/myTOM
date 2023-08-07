@@ -96,7 +96,7 @@ class QueryView(View):
 	def post(self, request, pk, *args, **kwargs):
 
 		form = QueryForm(request.POST)
-		target = Target.objects.get(pk=pk)   # need to pass this to main_func and then data_processor
+		target = Target.objects.get(pk=pk)
 
 		if form.is_valid():
 			print(form.cleaned_data['mjd'])
@@ -128,15 +128,15 @@ def main_func(self, target, MJD):
 
 		resp = requests.post(url=f"{BASEURL}/api-token-auth/", data=data)
 		print('this is the resp code: ', resp.status_code)
+
 		if resp.status_code == 200:
 			token = resp.json()["token"]
 			print(f"Your token is {token}")
 			print("Store this by running/adding to your .zshrc file:")
 			print(f'export ATLASFORCED_SECRET_KEY="{token}"')
 		else:
-			print(f"ERROR {resp.status_code}")
-			print(resp.text)
-			sys.exit()
+			raise Exception(f"ERROR {resp.status_code}. {resp.text}") #################
+			#sys.exit()   #send error messag to test-dataprocessor
 
 	headers = {"Authorization": f"Token {token}", "Accept": "application/json"}
 
@@ -164,9 +164,9 @@ def main_func(self, target, MJD):
 				print(f"Waiting {waittime} seconds")
 				time.sleep(waittime)
 			else:
-				print(f"ERROR {resp.status_code}")
-				print(resp.text)
-				sys.exit()
+				raise Exception(f"ERROR {resp.status_code}. {resp.text}")   ##############
+				#sys.exit()
+
 	result_url = None
 	taskstarted_printed = False
 	while not result_url:
@@ -186,9 +186,9 @@ def main_func(self, target, MJD):
 					print(f"Waiting for job to start (queued at {resp.json()['timestamp']})")
 					time.sleep(4)
 			else:
-				print(f"ERROR {resp.status_code}")
-				print(resp.text)
-				sys.exit()
+				raise Exception(f"ERROR {resp.status_code}. {resp.text}") ###################
+				#sys.exit()
+
 	with requests.Session() as s:
 		textdata = s.get(result_url, headers=headers).text
 

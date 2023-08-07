@@ -60,6 +60,8 @@ INSTALLED_APPS = [
     'tom_observations',
     'tom_dataproducts',
     'atlas_app',
+    'ztf_app',
+    'coverage',
 ]
 
 SITE_ID = 1
@@ -262,7 +264,8 @@ BROKERS = {
         'bot_name': '',
     }
     ,
-    'atlas':{'BASEURL':"https://fallingstar-data.com/forcedphot", 'USER': os.environ['ATLAS_USER'], 'PASS': os.environ['ATLAS_PWD']}
+    'atlas':{'BASEURL':"https://fallingstar-data.com/forcedphot", 'USER': os.environ['ATLAS_USER'], 'PASS': os.environ['ATLAS_PWD']},
+    'ztf':{'USER': os.environ['ZTF_USER'], 'PASS': os.environ['ZTF_PWD']},
 }
 
 TOM_HARVESTER_CLASSES = [
