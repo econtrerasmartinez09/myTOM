@@ -61,6 +61,7 @@ INSTALLED_APPS = [
     'tom_dataproducts',
     'atlas_app',
     'ztf_app',
+    'panSTARRS_app',
     'coverage',
 ]
 

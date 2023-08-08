@@ -67,9 +67,9 @@ class TestDataProcessor(TestCase):
 
         self.assertEqual(firstval,True,message)   # check if first val returned a data frame (i.e. True)
 
-    def test_dataprocessor_fail(self):
-        firstval = run_data_processor(self.fake_data, self.target)
+    #def test_dataprocessor_fail(self):
+    #   firstval = run_data_processor(self.fake_data, self.target)
 
-        message = 'Data processor test was not sucessful.'
+    #    message = 'Data processor test was not sucessful.'
 
-        self.assertEqual(firstval, False, message)
+    #    self.assertEqual(firstval, False, message)

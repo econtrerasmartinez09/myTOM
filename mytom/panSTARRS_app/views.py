@@ -30,12 +30,17 @@ from guardian.mixins import PermissionRequiredMixin
 from tom_targets.models import Target, TargetList
 from tom_common.mixins import Raise403PermissionRequiredMixin
 
-from .models import QueryModel
-from .forms import QueryForm
-from .data_processor import run_data_processor
+#from .models import QueryModel
+#from .forms import QueryForm
+#from .data_processor import run_data_processor
+
+from astropy.table import Table
 
 
 # Create your views here.
+
+ps1filename = "https://ps1images.stsci.edu/cgi-bin/ps1filenames.py"
+fitscut = "https://ps1images.stsci.edu/cgi-bin/fitscut.cgi"
 
 class TargetDetailView(Raise403PermissionRequiredMixin, DetailView):
     permission_required = 'tom_targets.view_target'
@@ -83,42 +88,26 @@ class TargetDetailView(Raise403PermissionRequiredMixin, DetailView):
         return super().get(request, *args, **kwargs)
 
 
-class QueryView(View):
+class PanStarrsQueryView(View):
 
     def get(self, request, pk, *args, **kwargs):
         target = Target.objects.get(pk=pk)
         context = {
             'target': target,
-            'form': QueryForm,
+            #'form': QueryForm,
         }
-        return render(request, 'query.html', context)
+        return render(request, 'panstarrs_query.html', context)
 
     def post(self, request, pk, *args, **kwargs):
 
-        form = QueryForm(request.POST)
         target = Target.objects.get(pk=pk)
+        panstarrs_main_func(self, target)
 
-        if form.is_valid():
-            print(form.cleaned_data['mjd'])
-
-            tra = target.ra
-            tdec = target.dec
-
-            getimages(self, tra, tdec)
-            return HttpResponseRedirect(reverse('tom_targets:detail', args=[pk]))
-        else:
-            form = QueryForm()
-
-        return render('query.html', {
-            'form': form,
-        })
+        return HttpResponseRedirect(reverse('tom_targets:detail', args=[pk]))
 
 
 
-ps1filename = "https://ps1images.stsci.edu/cgi-bin/ps1filenames.py"
-fitscut = "https://ps1images.stsci.edu/cgi-bin/fitscut.cgi"
-
-def getimages(self, tra, tdec, size=240, filters="grizy", format="fits", imagetypes="stack"):
+def getimages(tra, tdec, size=240, filters="grizy", format="fits", imagetypes="stack"):
     """Query ps1filenames.py service for multiple positions to get a list of images
     This adds a url column to the table to retrieve the cutout.
 
@@ -156,12 +145,17 @@ def getimages(self, tra, tdec, size=240, filters="grizy", format="fits", imagety
     return tab
 
 
-if __name__ == "__main__":
+def panstarrs_main_func(self, target):
     t0 = time.time()
 
+    tdec = []
+    tra = []
+
     # create a test set of image positions
-    tdec = np.append(np.arange(31) * 3.95 - 29.1, 88.0)
-    tra = np.append(np.arange(31) * 12., 0.0)
+    # currently setup for a single target
+
+    tdec = np.append(tdec, target.dec)
+    tra = np.append(tra, target.ra)
 
     # get the PS1 info for those positions
     table = getimages(tra, tdec, filters="ri")
@@ -172,7 +166,9 @@ if __name__ == "__main__":
     # advantage of file system caching on the server
     table.sort(['projcell', 'subcell', 'filter'])
 
-    # extract cutout for each position/filter combination
+    # creating empty dictionary where files and content is stored
+    data = {}
+
     for row in table:
         ra = row['ra']
         dec = row['dec']
@@ -183,8 +179,15 @@ if __name__ == "__main__":
         # create a name for the image -- could also include the projection cell or other info
         fname = "t{:08.4f}{:+07.4f}.{}.fits".format(ra, dec, filter)
 
+        print(f"This is the name for the image: {fname}")
+
         url = row["url"]
         print("%11.6f %10.6f skycell.%4.4d.%3.3d %s" % (ra, dec, projcell, subcell, fname))
         r = requests.get(url)
-        open(fname, "wb").write(r.content)
-    print("{:.1f} s: retrieved {} FITS files for {} positions".format(time.time() - t0, len(table), len(tra)))
+
+        data[fname] = r.content   # filename and content relation
+
+    for i in data:
+        print(i)   # print(filename)
+
+    print(f"This is our data: {len(data)}")   # print # of files saved

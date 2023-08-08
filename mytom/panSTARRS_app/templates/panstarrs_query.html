@@ -1,0 +1,25 @@
+{% extends 'tom_common/base.html' %}
+{% block title %}Target {{ target.name }}{% endblock %}
+{% block additional_css %}
+{% endblock %}
+{% block content %}
+<h1>Target: {{ target.name }}</h1>
+<p>RA: {{ target.ra }}</p>
+<p>Dec: {{ target.dec }}</p>
+<form onsubmit="openLoader()" action="" method="post">
+    {% csrf_token %}
+    <input type="submit" value="Get panSTARRS Photometry">
+</form><div id="loadingModal" style="display: none;">
+    <button class="btn btn-primary" type="button" disabled>
+      <span class="spinner-grow spinner-grow-sm" role="status" aria-hidden="true"></span>
+      Querying panSTARRS Server...
+    </button>
+</div>
+<script>
+
+function openLoader() {
+    document.getElementById("loadingModal").style.display = "block";
+  }
+
+</script>
+{% endblock %}
