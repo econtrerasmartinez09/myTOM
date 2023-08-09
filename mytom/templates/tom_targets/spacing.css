@@ -1,3 +1,11 @@
-.button-wrapper .btn {
-    margin-bottom:5px;
+#column{
+
+display: grid;
+
+margin: 20px 40px;
+
+grid-template-columns: repeat(auto-fill, auto);
+
+grid-gap: 14px;
+
 }

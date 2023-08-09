@@ -9,6 +9,8 @@ import csv
 import requests
 import sys
 import numpy as np
+import logging
+from urllib.parse import urlencode, urlparse
 
 from django.shortcuts import render, redirect
 from django.http import HttpResponse, HttpResponseRedirect
@@ -17,11 +19,19 @@ from django.forms import HiddenInput
 from django.template import loader
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib import messages
+from django.contrib.auth.models import Group
+from django.core.cache import cache
+from django.core.cache.utils import  make_template_fragment_key
+from django.core.exceptions import ImproperlyConfigured
+from django.core.management import call_command
+from django.utils.safestring import mark_safe
 from django.conf import settings
-from django.views.generic import RedirectView, TemplateView, View
-from django.views.generic.edit import CreateView, UpdateView, DeleteView, FormMixin
+from django.views.generic import RedirectView, TemplateView, View, ListView
+from django.views.generic.edit import CreateView, UpdateView, DeleteView, FormMixin, FormView
 from django.views.generic.detail import DetailView
+from django.views.generic.base import RedirectView
 from django.views.generic import FormView
+from django_filters.views import FilterView
 from django.shortcuts import get_object_or_404
 from django.urls import reverse_lazy, reverse
 from asgiref.sync import sync_to_async
@@ -29,14 +39,29 @@ from asgiref.sync import sync_to_async
 from io import StringIO
 from datetime import datetime
 
+from guardian.shortcuts import assign_perm, get_objects_for_user
 from guardian.mixins import PermissionRequiredMixin
 
 from tom_targets.models import Target, TargetList
 from tom_common.mixins import Raise403PermissionRequiredMixin
 
+from tom_common.hooks import run_hook
+from tom_common.hints import add_hint
+from tom_targets.serializers import TargetSerializer
+from tom_dataproducts.models import DataProduct, DataProductGroup, ReducedDatum
+from tom_dataproducts.exceptions import InvalidFileFormatException
+from tom_dataproducts.forms import AddProductToGroupForm, DataProductUploadForm, DataShareForm
+from tom_dataproducts.filters import DataProductFilter
+from tom_dataproducts.alertstreams.hermes import publish_photometry_to_hermes, BuildHermesMessage
+from tom_observations.models import ObservationRecord
+from tom_observations.facility import get_service_class
+from tom_dataproducts.serializers import DataProductSerializer
+
+#from tom_dataproducts.data_processor import run_data_processor
+
 
 from .forms import ZTFQueryForm
-# from .ztf_data_processor import run_data_processor
+from .ztf_data_processor import run_data_processor
 
 # Create your views here.
 
@@ -85,6 +110,80 @@ class TargetDetailView(Raise403PermissionRequiredMixin, DetailView):
 
         return super().get(request, *args, **kwargs)
 
+class DataProductUploadView(LoginRequiredMixin, FormView):
+    """
+    View that handles manual upload of DataProducts. Requires authentication.
+    """
+    form_class = DataProductUploadForm
+
+    def get_form(self, *args, **kwargs):
+        form = super().get_form(*args, **kwargs)
+        if not settings.TARGET_PERMISSIONS_ONLY:
+            if self.request.user.is_superuser:
+                form.fields['groups'].queryset = Group.objects.all()
+            else:
+                form.fields['groups'].queryset = self.request.user.groups.all()
+        return form
+
+    def form_valid(self, form):
+        """
+        Runs after ``DataProductUploadForm`` is validated. Saves each ``DataProduct`` and calls ``run_data_processor``
+        on each saved file. Redirects to the previous page.
+        """
+        target = form.cleaned_data['target']
+        if not target:
+            observation_record = form.cleaned_data['observation_record']
+            target = observation_record.target
+        else:
+            observation_record = None
+        dp_type = form.cleaned_data['data_product_type']
+        data_product_files = self.request.FILES.getlist('files')
+        successful_uploads = []
+        for f in data_product_files:
+            dp = DataProduct(
+                target=target,
+                observation_record=observation_record,
+                data=f,
+                product_id=None,
+                data_product_type=dp_type
+            )
+            dp.save()
+            try:
+                run_hook('data_product_post_upload', dp)
+                reduced_data = run_data_processor(dp)
+                if not settings.TARGET_PERMISSIONS_ONLY:
+                    for group in form.cleaned_data['groups']:
+                        assign_perm('tom_dataproducts.view_dataproduct', group, dp)
+                        assign_perm('tom_dataproducts.delete_dataproduct', group, dp)
+                        assign_perm('tom_dataproducts.view_reduceddatum', group, reduced_data)
+                successful_uploads.append(str(dp))
+            except InvalidFileFormatException as iffe:
+                ReducedDatum.objects.filter(data_product=dp).delete()
+                dp.delete()
+                messages.error(
+                    self.request,
+                    'File format invalid for file {0} -- error was {1}'.format(str(dp), iffe)
+                )
+            except Exception:
+                ReducedDatum.objects.filter(data_product=dp).delete()
+                dp.delete()
+                messages.error(self.request, 'There was a problem processing your file: {0}'.format(str(dp)))
+        if successful_uploads:
+            messages.success(
+                self.request,
+                'Successfully uploaded: {0}'.format('\n'.join([p for p in successful_uploads]))
+            )
+
+        return redirect(form.cleaned_data.get('referrer', '/'))
+
+    def form_invalid(self, form):
+        """
+        Adds errors to Django messaging framework in the case of an invalid form and redirects to the previous page.
+        """
+        # TODO: Format error messages in a more human-readable way
+        messages.error(self.request, 'There was a problem uploading your file: {}'.format(form.errors.as_json()))
+        return redirect(form.cleaned_data.get('referrer', '/'))
+
 
 class ZTFQueryView(View):
 
@@ -129,6 +228,8 @@ def ztf_main_func(self, target, StartJD, EndJD):
 
     x = requests.get(url, auth=HTTPBasicAuth('ztffps', 'dontgocrazy!'))
 
-    print(x.text)
+    textdata = x.text   # this is not the actual data set - just log form
+
+    print(f"This is the log: {textdata}")
 
     return print("Please check your email address for data files to be inserted into 'Manage Data' tab of TOM toolkit for further data processing.")

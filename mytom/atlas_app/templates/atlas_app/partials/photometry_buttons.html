@@ -1,1 +1,11 @@
-<a href="{% url 'atlas_app:query' pk=target.id %}" title="Get photometry" class="btn  btn-primary">Get ATLAS Photometry</a>
+<head>
+<style>
+.element {
+  margin-top: 8px;
+  margin-bottom: 8px;
+}
+</style>
+</head>
+<div class="element">
+    <a href="{% url 'atlas_app:query' pk=target.id %}" title="Get photometry" class="btn  btn-primary">Get ATLAS Photometry</a>
+</div>

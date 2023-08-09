@@ -233,6 +233,7 @@ DATA_PRODUCT_TYPES = {
     'spectroscopy': ('spectroscopy', 'Spectroscopy'),
     'image_file': ('image_file', 'Image File'),
     'csv_file': ('csv_file', 'CSV File'),
+    'text_file': ('text_file','Text File'),
 }
 
 DATA_PROCESSORS = {

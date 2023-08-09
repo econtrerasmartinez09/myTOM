@@ -91,7 +91,7 @@ $(document).ready(function(){
         {% if user.is_authenticated %}
           {% upload_dataproduct object %}
         {% endif %}
-        {% dataproduct_list_for_target object %}   # key area of button options
+        {% dataproduct_list_for_target object %}
       </div>
       <div class="tab-pane" id="manage-groups">
         {% target_groups target %}

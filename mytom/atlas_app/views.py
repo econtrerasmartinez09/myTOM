@@ -217,3 +217,4 @@ def main_func(self, target, MJD):
 
 	return True
 
+# jd, filter, forcediffimflux, forcediffimfluxunc, zpdiff, diffmaglim,
