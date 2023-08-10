@@ -9,4 +9,5 @@ app_name = 'ztf_app'
 urlpatterns = [
 	path("<int:pk>/ztfquery/",views.ZTFQueryView.as_view(),name='ztfquery'),
 	path('<int:pk>/', views.TargetDetailView.as_view(),name='detail'),
+	path('<int:pk/upload', views.DataProductUploadView.as_view(), name='upload'),
 ]

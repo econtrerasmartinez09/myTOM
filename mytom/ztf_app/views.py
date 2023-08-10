@@ -137,6 +137,7 @@ class DataProductUploadView(LoginRequiredMixin, FormView):
         else:
             observation_record = None
         dp_type = form.cleaned_data['data_product_type']
+        print(f"this is the data type: {dp_type}")
         data_product_files = self.request.FILES.getlist('files')
         successful_uploads = []
         for f in data_product_files:
@@ -151,6 +152,7 @@ class DataProductUploadView(LoginRequiredMixin, FormView):
             try:
                 run_hook('data_product_post_upload', dp)
                 reduced_data = run_data_processor(dp)
+                print(f"this is the reduced data: {reduced_data}")
                 if not settings.TARGET_PERMISSIONS_ONLY:
                     for group in form.cleaned_data['groups']:
                         assign_perm('tom_dataproducts.view_dataproduct', group, dp)
