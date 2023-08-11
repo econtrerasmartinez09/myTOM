@@ -66,49 +66,67 @@ from .ztf_data_processor import run_data_processor
 # Create your views here.
 
 class TargetDetailView(Raise403PermissionRequiredMixin, DetailView):
+    """
+    View that handles the display of the target details. Requires authorization.
+    """
     permission_required = 'tom_targets.view_target'
-    model = Target  # importing Target from ORM
+    model = Target
 
     def get_context_data(self, *args, **kwargs):
+        """
+        Adds the ``DataProductUploadForm`` to the context and prepopulates the hidden fields.
+
+        :returns: context object
+        :rtype: dict
+        """
         context = super().get_context_data(*args, **kwargs)
-        # observation_template_form = ApplyObservationTemplateForm(initial={'target': self.get_object()})
+        observation_template_form = ApplyObservationTemplateForm(initial={'target': self.get_object()})
         if any(self.request.GET.get(x) for x in ['observation_template', 'cadence_strategy', 'cadence_frequency']):
             initial = {'target': self.object}
             initial.update(self.request.GET)
-        # observation_template_form = ApplyObservationTemplateForm(
-        # 	initial=initial
-        # )
+            observation_template_form = ApplyObservationTemplateForm(
+                initial=initial
+            )
         observation_template_form.fields['target'].widget = HiddenInput()
         context['observation_template_form'] = observation_template_form
         return context
 
     def get(self, request, *args, **kwargs):
+        """
+        Handles the GET requests to this view. If update_status is passed into the query parameters, calls the
+        updatestatus management command to query for new statuses for ``ObservationRecord`` objects associated with this
+        target.
+
+        :param request: the request object passed to this view
+        :type request: HTTPRequest
+        """
         update_status = request.GET.get('update_status', False)
         if update_status:
             if not request.user.is_authenticated:
                 return redirect(reverse('login'))
-            target_id = kwargs.get('pk', None)  # key detail that will get the target
+            target_id = kwargs.get('pk', None)
             out = StringIO()
             call_command('updatestatus', target_id=target_id, stdout=out)
             messages.info(request, out.getvalue())
             add_hint(request, mark_safe(
-                'Did you know updating observation statuses can be automated? Learn how in'
-                '<a href=https://tom-toolkit.readthedocs.io/en/stable/customization/automation.html>'
-                ' the docs.</a>'))
+                              'Did you know updating observation statuses can be automated? Learn how in'
+                              '<a href=https://tom-toolkit.readthedocs.io/en/stable/customization/automation.html>'
+                              ' the docs.</a>'))
             return redirect(reverse('tom_targets:detail', args=(target_id,)))
 
         obs_template_form = ApplyObservationTemplateForm(request.GET)
         if obs_template_form.is_valid():
             obs_template = ObservationTemplate.objects.get(pk=obs_template_form.cleaned_data['observation_template'].id)
-            obs_tempalte_params = obs_template.parameters
-            obs_tempalte_params['cadence_strategy'] = request.GET.get('cadence_strategy', '')
-            obs_tempalte_params['cadence_frequency'] = request.GET.get('cadency_frequency', '')
-            params = urlencode(obs_tempalte_params)
+            obs_template_params = obs_template.parameters
+            obs_template_params['cadence_strategy'] = request.GET.get('cadence_strategy', '')
+            obs_template_params['cadence_frequency'] = request.GET.get('cadence_frequency', '')
+            params = urlencode(obs_template_params)
             return redirect(
-                reverse('tom_observation:create',
+                reverse('tom_observations:create',
                         args=(obs_template.facility,)) + f'?target_id={self.get_object().id}&' + params)
 
         return super().get(request, *args, **kwargs)
+
 
 class DataProductUploadView(LoginRequiredMixin, FormView):
     """
@@ -116,7 +134,10 @@ class DataProductUploadView(LoginRequiredMixin, FormView):
     """
     form_class = DataProductUploadForm
 
+    print("Form class is running")
+
     def get_form(self, *args, **kwargs):
+        print('we are in the get_form function')
         form = super().get_form(*args, **kwargs)
         if not settings.TARGET_PERMISSIONS_ONLY:
             if self.request.user.is_superuser:
@@ -130,6 +151,7 @@ class DataProductUploadView(LoginRequiredMixin, FormView):
         Runs after ``DataProductUploadForm`` is validated. Saves each ``DataProduct`` and calls ``run_data_processor``
         on each saved file. Redirects to the previous page.
         """
+        print('we are in the form_valid function')
         target = form.cleaned_data['target']
         if not target:
             observation_record = form.cleaned_data['observation_record']
@@ -150,6 +172,7 @@ class DataProductUploadView(LoginRequiredMixin, FormView):
             )
             dp.save()
             try:
+                print(f"The data processor is about to start")
                 run_hook('data_product_post_upload', dp)
                 reduced_data = run_data_processor(dp)
                 print(f"this is the reduced data: {reduced_data}")
@@ -185,6 +208,7 @@ class DataProductUploadView(LoginRequiredMixin, FormView):
         # TODO: Format error messages in a more human-readable way
         messages.error(self.request, 'There was a problem uploading your file: {}'.format(form.errors.as_json()))
         return redirect(form.cleaned_data.get('referrer', '/'))
+
 
 
 class ZTFQueryView(View):

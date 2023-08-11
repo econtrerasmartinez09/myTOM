@@ -19,7 +19,7 @@ DEFAULT_DATA_PROCESSOR_CLASS = 'atlas_app.data_processor.MyDataProcessor'
 
 def run_data_processor(dp, target):
     try:
-        processor_class = settings.DATA_PROCESSORS[dp.data_product_type]
+        processor_class = settings.DATA_PROCESSORS[dp.data_product_type]   # custom data processor is accepted
     except Exception:
         processor_class = DEFAULT_DATA_PROCESSOR_CLASS
     try:

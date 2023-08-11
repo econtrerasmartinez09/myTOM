@@ -27,15 +27,73 @@ def run_data_processor(dp, target):
         mod = import_module(mod_name)
         clazz = getattr(mod, class_name)
     except (ImportError, AttributeError):
-        raise ImportError('Could not import {}. Did you provide the correct path?'.format(processor_class))  #
+        raise ImportError('Could not import {}. Did you provide the correct path?'.format(processor_class))
 
     data_processor = clazz()
+    time, data = data_processor.process_data(dp)   # MAIN FUNC, returns variables time and data
 
-    # use a try/except wrap around this entire section for true/false values for test_dataprocessor
     try:
         reduced_datums = []
 
-        ##################################
+        datum = ReducedDatum(target=target, data_type='photometry',
+                             timestamp=time['timestamp'], value=data)
+
+        reduced_datums.append(datum)
+
+        ReducedDatum.objects.bulk_create(reduced_datums)
+
+        return ReducedDatum.objects.filter(data_product=dp)
+
+    except RuntimeError:
+        return False
+
+
+class MyDataProcessor(DataProcessor):
+
+    FITS_MIMETYPES = ['image/fits', 'application/fits']
+    PLAINTEXT_MIMETYPES = ['text/plain', 'text/csv']
+
+    mimetypes.add_type('image/fits', '.fits')
+    mimetypes.add_type('image/fits', '.fz')
+    mimetypes.add_type('application/fits', '.fits')
+    mimetypes.add_type('application/fits', '.fz')
+    mimetypes.add_type('application/json', '.json')
+
+    def process_data(self, data_product):
+        """
+        Routes a photometry processing call to a method specific to a file-format.
+
+        :param data_product: Photometric DataProduct which will be processed into the specified format for database
+        ingestion
+        :type data_product: DataProduct
+
+        :returns: python list of 2-tuples, each with a timestamp and corresponding data
+        :rtype: list
+        """
+
+        mimetype = mimetypes.guess_type(data_product.data.path)[0]
+        if mimetype in self.PLAINTEXT_MIMETYPES:
+            time, data = self._process_photometry_from_plaintext(data_product)   # should this be where all data reduction occurs from text file
+            return time, data
+        else:
+            raise InvalidFileFormatException('Unsupported file type')
+
+    def _process_photometry_from_plaintext(self, data_product):
+        """
+        Processes the photometric data from a plaintext file into a list of dicts. File is read using astropy as
+        specified in the below documentation. The file is expected to be a multi-column delimited file, with headers for
+        time, magnitude, filter, and error.
+        # http://docs.astropy.org/en/stable/io/ascii/read.html
+
+        :param data_product: Photometric DataProduct which will be processed into a list of dicts
+        :type data_product: DataProduct
+
+        :returns: python list containing the photometric data from the DataProduct
+        :rtype: list
+        """
+
+        fin = open(data_product.data.path, 'rt')
+
         JD = []
         filter = []
 
@@ -44,7 +102,7 @@ def run_data_processor(dp, target):
         zpdiff = []
         diffmaglim = []
 
-        for index, line in enumerate(dp):  # dp is the text file
+        for index, line in enumerate(fin):  # dp is the text file
             entries = line.replace("\n", "").split()
 
             if index > 55:  # index at start of actual and onwards
@@ -73,38 +131,4 @@ def run_data_processor(dp, target):
                 time = {'timestamp': t.iso}
                 data = {'magnitude': final_mag, 'magnitude_error': mag_err, 'filter': filter}
 
-        datum = ReducedDatum(target= target, data_type = 'photometry',
-                                     timestamp = time['timestamp'], value = data)
-
-        reduced_datums.append(datum)
-
-        ReducedDatum.objects.bulk_create(reduced_datums)
-
-        return ReducedDatum.objects.filter(data_product=dp)
-
-    except RuntimeError:
-        return False
-
-class MyDataProcessor(DataProcessor):
-
-    FITS_MIMETYPES = ['image/fits', 'application/fits']
-    PLAINTEXT_MIMETYPES = ['text/plain', 'text/csv']
-
-    mimetypes.add_type('image/fits', '.fits')
-    mimetypes.add_type('image/fits', '.fz')
-    mimetypes.add_type('application/fits', '.fits')
-    mimetypes.add_type('application/fits', '.fz')
-    mimetypes.add_type('application/json', '.json')
-
-    def process_data(self, data_product):
-        """
-        Routes a photometry processing call to a method specific to a file-format. This method is expected to be
-        implemented by any subclasses.
-
-        :param data_product: DataProduct which will be processed into a list
-        :type data_product: DataProduct
-
-        :returns: python list of 2-tuples, each with a timestamp and corresponding data
-        :rtype: list of 2-tuples
-        """
-        return []
+        return time, data

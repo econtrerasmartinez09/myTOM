@@ -32,9 +32,10 @@ from tom_common.mixins import Raise403PermissionRequiredMixin
 
 #from .models import QueryModel
 #from .forms import QueryForm
-#from .data_processor import run_data_processor
+from .panstarrs_data_processor import run_data_processor
 
 from astropy.table import Table
+from astropy.io import fits
 
 
 # Create your views here.
@@ -43,50 +44,68 @@ ps1filename = "https://ps1images.stsci.edu/cgi-bin/ps1filenames.py"
 fitscut = "https://ps1images.stsci.edu/cgi-bin/fitscut.cgi"
 
 class TargetDetailView(Raise403PermissionRequiredMixin, DetailView):
+    """
+    View that handles the display of the target details. Requires authorization.
+    """
     permission_required = 'tom_targets.view_target'
-    model = Target  # importing Target from ORM
+    model = Target
 
     def get_context_data(self, *args, **kwargs):
+        """
+        Adds the ``DataProductUploadForm`` to the context and prepopulates the hidden fields.
+
+        :returns: context object
+        :rtype: dict
+        """
         context = super().get_context_data(*args, **kwargs)
-        # observation_template_form = ApplyObservationTemplateForm(initial={'target': self.get_object()})
+        observation_template_form = ApplyObservationTemplateForm(initial={'target': self.get_object()})
         if any(self.request.GET.get(x) for x in ['observation_template', 'cadence_strategy', 'cadence_frequency']):
             initial = {'target': self.object}
             initial.update(self.request.GET)
-        # observation_template_form = ApplyObservationTemplateForm(
-        # 	initial=initial
-        # )
+            observation_template_form = ApplyObservationTemplateForm(
+                initial=initial
+            )
         observation_template_form.fields['target'].widget = HiddenInput()
         context['observation_template_form'] = observation_template_form
         return context
 
     def get(self, request, *args, **kwargs):
+        """
+        Handles the GET requests to this view. If update_status is passed into the query parameters, calls the
+        updatestatus management command to query for new statuses for ``ObservationRecord`` objects associated with this
+        target.
+
+        :param request: the request object passed to this view
+        :type request: HTTPRequest
+        """
         update_status = request.GET.get('update_status', False)
         if update_status:
             if not request.user.is_authenticated:
                 return redirect(reverse('login'))
-            target_id = kwargs.get('pk', None)  # key detail that will get the target
+            target_id = kwargs.get('pk', None)
             out = StringIO()
             call_command('updatestatus', target_id=target_id, stdout=out)
             messages.info(request, out.getvalue())
             add_hint(request, mark_safe(
-                'Did you know updating observation statuses can be automated? Learn how in'
-                '<a href=https://tom-toolkit.readthedocs.io/en/stable/customization/automation.html>'
-                ' the docs.</a>'))
+                              'Did you know updating observation statuses can be automated? Learn how in'
+                              '<a href=https://tom-toolkit.readthedocs.io/en/stable/customization/automation.html>'
+                              ' the docs.</a>'))
             return redirect(reverse('tom_targets:detail', args=(target_id,)))
 
         obs_template_form = ApplyObservationTemplateForm(request.GET)
         if obs_template_form.is_valid():
             obs_template = ObservationTemplate.objects.get(pk=obs_template_form.cleaned_data['observation_template'].id)
-            obs_tempalte_params = obs_template.parameters
-            obs_tempalte_params['cadence_strategy'] = request.GET.get('cadence_strategy', '')
-            obs_tempalte_params['cadence_frequency'] = request.GET.get('cadency_frequency', '')
-            params = urlencode(obs_tempalte_params)
+            obs_template_params = obs_template.parameters
+            obs_template_params['cadence_strategy'] = request.GET.get('cadence_strategy', '')
+            obs_template_params['cadence_frequency'] = request.GET.get('cadence_frequency', '')
+            params = urlencode(obs_template_params)
             return redirect(
-                reverse('tom_observation:create',
+                reverse('tom_observations:create',
                         args=(obs_template.facility,)) + f'?target_id={self.get_object().id}&' + params)
 
         return super().get(request, *args, **kwargs)
 
+###################################################################################
 
 class PanStarrsQueryView(View):
 
@@ -105,7 +124,7 @@ class PanStarrsQueryView(View):
 
         return HttpResponseRedirect(reverse('tom_targets:detail', args=[pk]))
 
-
+#########################################################################################
 
 def getimages(tra, tdec, size=240, filters="grizy", format="fits", imagetypes="stack"):
     """Query ps1filenames.py service for multiple positions to get a list of images
@@ -166,6 +185,8 @@ def panstarrs_main_func(self, target):
     # advantage of file system caching on the server
     table.sort(['projcell', 'subcell', 'filter'])
 
+    #####################
+
     # creating empty dictionary where files and content is stored
     data = {}
 
@@ -190,4 +211,5 @@ def panstarrs_main_func(self, target):
     for i in data:
         print(i)   # print(filename)
 
-    print(f"This is our data: {len(data)}")   # print # of files saved
+    #print(f"This is our data: {data}")   # print # of files saved
+    run_data_processor(data, target)
