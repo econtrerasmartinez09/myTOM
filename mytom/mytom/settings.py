@@ -240,7 +240,7 @@ DATA_PROCESSORS = {
     'photometry': 'tom_dataproducts.processors.photometry_processor.PhotometryProcessor',
     'spectroscopy': 'tom_dataproducts.processors.spectroscopy_processor.SpectroscopyProcessor',
     'csv': 'mytom.atlas_app.data_processor.MyDataProcessor',
-    'text': 'mytom.ztf_app.ztf_data_processor.MyDataProcessor',
+    'text_file': 'ztf_app.ztf_data_processor.MyDataProcessor',
 }
 
 TOM_FACILITY_CLASSES = [

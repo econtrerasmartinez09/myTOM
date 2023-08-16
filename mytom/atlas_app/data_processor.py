@@ -43,7 +43,7 @@ def run_data_processor(dp, target):
                       'filter': item[3]}
 
             datum = ReducedDatum(target = target, data_type = 'photometry',
-                                      timestamp = mjd['timestamp'], value = values)
+                                      timestamp = mjd['timestamp'], value = values, source_name='ATLAS')
 
             reduced_datums.append(datum)
 

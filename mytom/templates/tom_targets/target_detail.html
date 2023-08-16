@@ -1,5 +1,5 @@
 {% extends 'tom_common/base.html' %}
-{% load comments bootstrap4 tom_common_extras targets_extras observation_extras dataproduct_extras force_photometry ztf_force_photometry panstarrs_force_photometry static cache %}
+{% load comments bootstrap4 tom_common_extras targets_extras observation_extras dataproduct_extras force_photometry ztf_force_photometry panstarrs_force_photometry  static cache %}
 {% block title %}Target {{ object.name }}{% endblock %}
 {% block additional_css %}
 <link rel="stylesheet" href="{% static 'tom_common/css/main.css' %}">
@@ -97,8 +97,8 @@ $(document).ready(function(){
         {% target_groups target %}
       </div>
       <div class="tab-pane" id="photometry">
-        {% photometry_for_target target %}
-        {% get_photometry_data object %}
+        {% ztf_photometry_for_target target %}
+        {% ztf_get_photometry_data object %}
         </div>
       <div class="tab-pane" id="spectroscopy">
         {% spectroscopy_for_target target %}

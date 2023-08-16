@@ -17,7 +17,9 @@ from tom_dataproducts.exceptions import InvalidFileFormatException
 
 DEFAULT_DATA_PROCESSOR_CLASS = 'ztf_app.ztf_data_processor.MyDataProcessor'
 
-def run_data_processor(dp, target):
+
+def run_data_processor(dp):
+
     try:
         processor_class = settings.DATA_PROCESSORS[dp.data_product_type]
     except Exception:
@@ -30,15 +32,13 @@ def run_data_processor(dp, target):
         raise ImportError('Could not import {}. Did you provide the correct path?'.format(processor_class))
 
     data_processor = clazz()
-    time, data = data_processor.process_data(dp)   # MAIN FUNC, returns variables time and data
-
+    data = data_processor.process_data(dp)   # MAIN FUNC, returns variables time and data
     try:
-        reduced_datums = []
 
-        datum = ReducedDatum(target=target, data_type='photometry',
-                             timestamp=time['timestamp'], value=data)
+        target = Target.objects.filter(target = dp.target)
 
-        reduced_datums.append(datum)
+        reduced_datums = [ReducedDatum(target=target, data_product = dp, data_type='photometry',
+                             timestamp=datum[0], value=datum[1], source_name = datum[2]) for datum in data]
 
         ReducedDatum.objects.bulk_create(reduced_datums)
 
@@ -73,8 +73,8 @@ class MyDataProcessor(DataProcessor):
 
         mimetype = mimetypes.guess_type(data_product.data.path)[0]
         if mimetype in self.PLAINTEXT_MIMETYPES:
-            time, data = self._process_photometry_from_plaintext(data_product)   # should this be where all data reduction occurs from text file
-            return time, data
+            photometry = self._process_photometry_from_plaintext(data_product)   # should this be where all data reduction occurs from text file
+            return [(datum.pop('timestamp'), datum, datum.pop('source', 'ZTF')) for datum in photometry]
         else:
             raise InvalidFileFormatException('Unsupported file type')
 
@@ -122,13 +122,26 @@ class MyDataProcessor(DataProcessor):
                         elif idx == 25:
                             flux_err.append(float(x))  # forcediffimfluxunc (i.e. uncertainty)
 
-                    mag = [i - 2.5 * np.log10(j) for i, j in zip(zpdiff, flux)]
-                    mag_err = [(2.5 / np.log(10.0)) * i / j for i, j in zip(flux_err, flux)]  # mag_err
+        mag = [i - 2.5 * np.log10(j) for i, j in zip(zpdiff, flux)]
+        mag_err = [(2.5 / np.log(10.0)) * i / j for i, j in zip(flux_err, flux)]  # mag_err
 
-                    final_mag = [j if i > j or np.isnan(i) else i for i, j in zip(mag, diffmaglim)]  # final mag
+        final_mag = [j if i > j or np.isnan(i) else i for i, j in zip(mag, diffmaglim)]  # final mag
 
-                t = Time(JD, format='jd', scale='utc')
-                time = {'timestamp': t.iso}
-                data = {'magnitude': final_mag, 'magnitude_error': mag_err, 'filter': filter}
+        photometry = []
 
-        return time, data
+        for i in range(len(JD)):
+
+            t = Time(float(JD[i]), format='jd')
+            utc = TimezoneInfo(utc_offset=0*units.hour)
+            t.format = 'datetime'
+        #    time.append(t.to_datetime(timezone=utc))
+            value = {
+                'timestamp': t.to_datetime(timezone=utc),
+            }
+            for x in range(len(final_mag)):
+                value['magnitude'] = final_mag[i]
+                value['error'] = mag_err[i]
+                value['filter'] = filter[i]
+            photometry.append(value)
+
+        return photometry

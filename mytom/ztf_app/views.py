@@ -134,10 +134,7 @@ class DataProductUploadView(LoginRequiredMixin, FormView):
     """
     form_class = DataProductUploadForm
 
-    print("Form class is running")
-
     def get_form(self, *args, **kwargs):
-        print('we are in the get_form function')
         form = super().get_form(*args, **kwargs)
         if not settings.TARGET_PERMISSIONS_ONLY:
             if self.request.user.is_superuser:
@@ -151,7 +148,6 @@ class DataProductUploadView(LoginRequiredMixin, FormView):
         Runs after ``DataProductUploadForm`` is validated. Saves each ``DataProduct`` and calls ``run_data_processor``
         on each saved file. Redirects to the previous page.
         """
-        print('we are in the form_valid function')
         target = form.cleaned_data['target']
         if not target:
             observation_record = form.cleaned_data['observation_record']
@@ -159,7 +155,6 @@ class DataProductUploadView(LoginRequiredMixin, FormView):
         else:
             observation_record = None
         dp_type = form.cleaned_data['data_product_type']
-        print(f"this is the data type: {dp_type}")
         data_product_files = self.request.FILES.getlist('files')
         successful_uploads = []
         for f in data_product_files:
@@ -172,10 +167,8 @@ class DataProductUploadView(LoginRequiredMixin, FormView):
             )
             dp.save()
             try:
-                print(f"The data processor is about to start")
                 run_hook('data_product_post_upload', dp)
                 reduced_data = run_data_processor(dp)
-                print(f"this is the reduced data: {reduced_data}")
                 if not settings.TARGET_PERMISSIONS_ONLY:
                     for group in form.cleaned_data['groups']:
                         assign_perm('tom_dataproducts.view_dataproduct', group, dp)
@@ -243,9 +236,6 @@ def ztf_main_func(self, target, StartJD, EndJD):
 
     USER = settings.BROKERS['ztf']['USER']
     PWD = settings.BROKERS['ztf']['PASS']
-
-    print(f"This is the username: {USER}")
-    print(f"This is the password: {PWD}")
 
     print(f"This is the target RA: {target.ra}")
     print(f"This is the target Dec: {target.dec}")
