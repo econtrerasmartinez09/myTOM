@@ -31,7 +31,7 @@ from tom_targets.models import Target, TargetList
 from tom_common.mixins import Raise403PermissionRequiredMixin
 
 #from .models import QueryModel
-#from .forms import QueryForm
+from .forms import panstarrsQueryForm
 from .panstarrs_data_processor import run_data_processor
 
 from astropy.table import Table
@@ -113,16 +113,25 @@ class PanStarrsQueryView(View):
         target = Target.objects.get(pk=pk)
         context = {
             'target': target,
-            #'form': QueryForm,
+            'form': panstarrsQueryForm,
         }
         return render(request, 'panstarrs_query.html', context)
 
     def post(self, request, pk, *args, **kwargs):
 
+        form = panstarrsQueryForm(request.POST)
         target = Target.objects.get(pk=pk)
-        panstarrs_main_func(self, target)
 
-        return HttpResponseRedirect(reverse('tom_targets:detail', args=[pk]))
+        if form.is_valid():
+            print(f"This is the Filter: {form.cleaned_data['Filter']}")
+            panstarrs_main_func(self, target, Filter=form.cleaned_data['Filter'])
+            return HttpResponseRedirect(reverse('tom_targets:detail', args=[pk]))
+        else:
+            form = panstarrsQueryForm()
+
+        return render('panstarrs_query.html', {
+            'form': form,
+        })
 
 #########################################################################################
 
@@ -164,7 +173,7 @@ def getimages(tra, tdec, size=240, filters="grizy", format="fits", imagetypes="s
     return tab
 
 
-def panstarrs_main_func(self, target):
+def panstarrs_main_func(self, target, Filter):
     t0 = time.time()
 
     tdec = []
@@ -173,11 +182,13 @@ def panstarrs_main_func(self, target):
     # create a test set of image positions
     # currently setup for a single target
 
-    tdec = np.append(tdec, target.dec)
+    tdec = np.append(tdec, target.dec)   # collects ra and dec from TOM ORM
     tra = np.append(tra, target.ra)
 
+    # add filter to user input
+
     # get the PS1 info for those positions
-    table = getimages(tra, tdec, filters="ri")
+    table = getimages(tra, tdec, filters=Filter)   # inputs the user's choice of filter
     print("{:.1f} s: got list of {} images for {} positions".format(time.time() - t0, len(table), len(tra)))
 
     # if you are extracting images that are close together on the sky,
@@ -187,8 +198,7 @@ def panstarrs_main_func(self, target):
 
     #####################
 
-    # creating empty dictionary where files and content is stored
-    data = {}
+
 
     for row in table:
         ra = row['ra']
@@ -200,16 +210,18 @@ def panstarrs_main_func(self, target):
         # create a name for the image -- could also include the projection cell or other info
         fname = "t{:08.4f}{:+07.4f}.{}.fits".format(ra, dec, filter)
 
-        print(f"This is the name for the image: {fname}")
-
         url = row["url"]
         print("%11.6f %10.6f skycell.%4.4d.%3.3d %s" % (ra, dec, projcell, subcell, fname))
         r = requests.get(url)
 
-        data[fname] = r.content   # filename and content relation
+        fits.writeto(fname, r.content)
 
-    for i in data:
-        print(i)   # print(filename)
+        #open(fname, "wb").write(r.content)
+        #print(f"this is the written fits file: {fname}")
 
-    #print(f"This is our data: {data}")   # print # of files saved
-    run_data_processor(data, target)
+
+    exit()
+
+    print(f"We are here right before calling the run data processor!")
+
+    run_data_processor(fname)   # call the run_data_processor

@@ -8,8 +8,10 @@
 <p>Dec: {{ target.dec }}</p>
 <form onsubmit="openLoader()" action="" method="post">
     {% csrf_token %}
+    {{ form.as_p }}
     <input type="submit" value="Get panSTARRS Photometry">
-</form><div id="loadingModal" style="display: none;">
+</form>
+<div id="loadingModal" style="display: none;">
     <button class="btn btn-primary" type="button" disabled>
       <span class="spinner-grow spinner-grow-sm" role="status" aria-hidden="true"></span>
       Querying panSTARRS Server...
