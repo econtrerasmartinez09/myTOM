@@ -79,6 +79,9 @@ class MyDataProcessor():
 
         mimetype = 'image/fits'
         print(f"this is the mimetype: {mimetype}")
+        print("")
+        print(f"this is our dataproduct: {data_product}")
+
         if mimetype in self.FITS_MIMETYPES:
             spectrum, obs_date = self._process_spectrum_from_fits(data_product)
         elif mimetype in self.PLAINTEXT_MIMETYPES:
@@ -109,9 +112,9 @@ class MyDataProcessor():
             datetime otherwise
         :rtype: AstroPy.Time
         """
-        print(f"this is our dataproduct: {data_product}")
 
-        flux, header = fits.getdata(data_product)
+        flux = fits.getdata(data_product)
+        header = fits.getheader(data_product)
 
         for facility_class in get_service_classes():
             facility = get_service_class(facility_class)()
@@ -137,7 +140,7 @@ class MyDataProcessor():
 
         return spectrum, Time(date_obs).to_datetime()
 
-    def _process_spectrum_from_plaintext(self, data_product):
+    def _process_spectrum_from_plaintext(self, data_product):   # this is not needed since file is fits file
         """
         Processes the data from a spectrum from a plaintext file into a Spectrum1D object, which can then be serialized
         and stored as a ReducedDatum for further processing or display. File is read using astropy as specified in

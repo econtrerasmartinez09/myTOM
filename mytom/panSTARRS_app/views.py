@@ -214,13 +214,27 @@ def panstarrs_main_func(self, target, Filter):
         print("%11.6f %10.6f skycell.%4.4d.%3.3d %s" % (ra, dec, projcell, subcell, fname))
         r = requests.get(url)
 
-        fits.writeto(fname, r.content)
+        open(fname, "wb").write(r.content)   # change this s.t. it is written to disk
 
-        #open(fname, "wb").write(r.content)
-        #print(f"this is the written fits file: {fname}")
+        #data = fits.getdata(fname)
+        #header = fits.getheader(fname)
 
+    #print(f"this is the data: {data}")
+    #print("")
+    #print(f"this is the header: {header}")
 
-    exit()
+    #dataproduct = fits.writeto('dataproduct.fits', data, header, overwrite=True)
+
+    #print(f"this is our dataproduct: {dataproduct}")
+
+    #hdulist = fits.open(fname)
+
+    #print(hdulist.info())
+    #print("")
+    #print(hdulist[0].data)
+    #print("")
+
+    #print(f"this is the written fits file: {fname}")
 
     print(f"We are here right before calling the run data processor!")
 
